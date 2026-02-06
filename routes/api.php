@@ -1,11 +1,27 @@
 <?php
 
-use App\Http\Controllers\Api\ChallengesApiController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Transactions;
+use App\Http\Controllers\Api\ChallengesApiController;
 
-Route::post('/income', [\App\Http\Controllers\Transactions::class, 'Income']);
-Route::post('/expense', [\App\Http\Controllers\Transactions::class, 'Expense']);
+/**
+ * Transactions (recommended unified endpoints)
+ * Flutter should move to POST /api/transactions soon.
+ */
+Route::get('/transactions', [Transactions::class, 'index']);
+Route::post('/transactions', [Transactions::class, 'store']);
 
+/**
+ * Backward compatible routes (so your existing Flutter doesn't break)
+ * These will call your old methods for now.
+ * Later, you can delete them after Flutter is updated.
+ */
+Route::post('/income', [Transactions::class, 'Income']);
+Route::post('/expense', [Transactions::class, 'Expense']);
+
+/**
+ * Challenges (keep as-is)
+ */
 Route::prefix('challenges')->group(function () {
     Route::get('/', [ChallengesApiController::class, 'index']);
     Route::get('/daily', [ChallengesApiController::class, 'daily']);
