@@ -11,6 +11,7 @@
         id="challengeForm"
         method="POST"
         action="{{ route('challenges.store') }}"
+        enctype="multipart/form-data"
         class="flex-1 overflow-y-auto p-6 flex flex-col gap-6"
     >
         @csrf
@@ -46,6 +47,7 @@
                 <label class="text-xs font-bold uppercase text-[#90cba8] tracking-wider">Category</label>
                 <div class="relative">
                     <select id="challengeCategory" name="category" required class="w-full bg-[#0D0F10] border border-[#224932] rounded-lg px-4 py-3 text-white appearance-none focus:ring-2 focus:ring-primary focus:border-transparent outline-none">
+                        <option value="Income">Income</option>
                         <option value="Savings">Savings</option>
                         <option value="Budgeting">Budgeting</option>
                         <option value="Investing">Investing</option>
@@ -83,6 +85,38 @@
             </div>
         </div>
 
+        {{-- Win condition: which transactions count toward progress --}}
+        <div class="p-4 rounded-xl bg-[#0D0F10] border border-[#224932] flex flex-col gap-4">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">flag</span>
+                <span class="text-white font-bold">Win Condition</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold uppercase text-[#90cba8] tracking-wider">Transaction Type</label>
+                    <select id="winConditionType" name="win_condition_transaction_type" class="w-full bg-[#121417] border border-[#224932] rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-primary outline-none">
+                        <option value="">—</option>
+                        <option value="income">Income</option>
+                        <option value="expense">Expense</option>
+                    </select>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold uppercase text-[#90cba8] tracking-wider">Category (match)</label>
+                    <input id="winConditionCategory" name="win_condition_transaction_category" class="w-full bg-[#121417] border border-[#224932] rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-primary outline-none placeholder-[#3d5e4a]" placeholder="e.g. Allowance" type="text" maxlength="80"/>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-bold uppercase text-[#90cba8] tracking-wider">Min Amount (optional)</label>
+                    <input id="winConditionMinAmount" name="win_condition_min_amount" class="w-full bg-[#121417] border border-[#224932] rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-primary outline-none placeholder-[#3d5e4a]" placeholder="0" type="number" min="0" step="0.01"/>
+                </div>
+                <div class="flex items-center gap-2 pt-6">
+                    <input type="checkbox" id="winConditionSumAmount" name="win_condition_sum_amount" value="1" class="rounded border-[#224932] bg-[#121417] text-primary focus:ring-primary"/>
+                    <label for="winConditionSumAmount" class="text-sm text-white">Sum amount toward progress</label>
+                </div>
+            </div>
+        </div>
+
         <div class="flex flex-col gap-2">
             <label class="text-xs font-bold uppercase text-[#90cba8] tracking-wider">Icon (Emoji)</label>
             <input id="challengeIcon" name="icon" class="w-full bg-[#0D0F10] border border-[#224932] rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none placeholder-[#3d5e4a]" placeholder="🎯" type="text" maxlength="2"/>
@@ -109,6 +143,28 @@
                 </button>
                 <input type="hidden" id="unlockBadge" name="unlock_badge" value="0">
             </div>
+
+            {{-- ✅ ADDED: badge upload section (hidden unless toggle ON) --}}
+            <div id="badgeUploadWrap" class="mt-4 hidden">
+                <label class="text-xs font-bold uppercase text-[#90cba8] tracking-wider">Badge PNG</label>
+
+                <div class="mt-2 flex items-center gap-3">
+                    <input
+                        id="badgeImage"
+                        name="badge_image"
+                        type="file"
+                        accept="image/png"
+                        class="w-full bg-[#0D0F10] border border-[#224932] rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none"
+                    />
+
+                    <div class="size-12 rounded-xl border border-[#224932] bg-[#0D0F10] overflow-hidden flex items-center justify-center">
+                        <img id="badgePreview" src="" alt="Badge" class="hidden w-full h-full object-contain"/>
+                        <span id="badgePreviewPlaceholder" class="material-symbols-outlined text-[#90cba8]">image</span>
+                    </div>
+                </div>
+
+                <div class="mt-2 text-xs text-[#90cba8]">PNG only. Max 2MB.</div>
+            </div>
         </div>
 
         <div class="flex items-center justify-between py-2 border-t border-[#224932] mt-2">
@@ -126,7 +182,6 @@
     <div class="p-6 border-t border-[#224932] bg-[#121417] flex gap-3">
         <button type="button" onclick="closeCreatePanel()" class="flex-1 py-3 px-4 rounded-full border border-[#224932] text-white hover:bg-white/5 font-medium transition-colors">Cancel</button>
 
-        {{-- ✅ Keep your UI button, but it triggers AJAX that sends CSRF header correctly --}}
         <button type="button" onclick="saveChallenge()" class="flex-1 py-3 px-4 rounded-full bg-primary text-[#0D0F10] font-bold hover:bg-[#1ee86e] transition-colors shadow-neon flex items-center justify-center gap-2">
             <span class="material-symbols-outlined">save</span>
             <span id="saveButtonText">Save Challenge</span>
@@ -135,59 +190,78 @@
 </div>
 
 <script>
-    function getCsrfToken() {
-        // Prefer meta tag
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta && meta.content) return meta.content;
+    // Badge toggle + preview (NO UI changes)
+    function setBadgeUI(on, imageUrl = "") {
+        const hidden = document.getElementById('unlockBadge');
+        const wrap = document.getElementById('badgeUploadWrap');
+        const toggle = document.getElementById('badgeToggle');
+        const knob = toggle ? toggle.querySelector('span') : null;
 
-        // Fallback to hidden input in the form
-        const form = document.getElementById('challengeForm');
-        const input = form ? form.querySelector('input[name="_token"]') : null;
-        return input ? input.value : '';
-    }
+        const preview = document.getElementById('badgePreview');
+        const placeholder = document.getElementById('badgePreviewPlaceholder');
 
-    async function saveChallenge() {
-        const form = document.getElementById('challengeForm');
-        if (!form) return;
+        const isOn = !!on;
 
-        // Basic HTML validation (keeps your UI)
-        if (!form.reportValidity()) return;
+        if (hidden) hidden.value = isOn ? "1" : "0";
+        if (wrap) wrap.classList.toggle('hidden', !isOn);
 
-        const url = form.getAttribute('action');
-        const token = getCsrfToken();
+        if (toggle && knob) {
+            toggle.classList.toggle('bg-primary', isOn);
+            toggle.classList.toggle('bg-[#224932]', !isOn);
 
-        const formData = new FormData(form);
+            knob.classList.toggle('left-1', !isOn);
+            knob.classList.toggle('right-1', isOn);
+            knob.classList.toggle('bg-white', isOn);
+            knob.classList.toggle('bg-[#90cba8]', !isOn);
+        }
 
-        try {
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': token,
-                    'Accept': 'application/json'
-                },
-                body: formData,
-                credentials: 'same-origin'
-            });
-
-            if (res.status === 419) {
-                alert('CSRF token mismatch. Refresh the page and try again.');
-                return;
+        if (preview && placeholder) {
+            if (isOn && imageUrl) {
+                preview.src = imageUrl;
+                preview.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                preview.src = "";
+                preview.classList.add('hidden');
+                placeholder.classList.remove('hidden');
             }
-
-            // If your controller redirects, fetch will follow but we still can handle ok
-            if (!res.ok) {
-                const text = await res.text();
-                console.error('Save challenge failed:', res.status, text);
-                alert('Failed to save challenge. Check console/logs.');
-                return;
-            }
-
-            // If controller returns JSON, good. If it redirects, also ok.
-            // Best UX: just reload list
-            window.location.reload();
-        } catch (e) {
-            console.error(e);
-            alert('Network error while saving challenge.');
         }
     }
+
+    function toggleBadge() {
+        const hidden = document.getElementById('unlockBadge');
+        const current = hidden ? (hidden.value === "1") : false;
+        const next = !current;
+
+        if (!next) {
+            const file = document.getElementById('badgeImage');
+            if (file) file.value = "";
+        }
+
+        setBadgeUI(next);
+    }
+
+    document.addEventListener('change', function (e) {
+        const input = e.target;
+        if (!input || input.id !== 'badgeImage') return;
+
+        const file = input.files && input.files[0];
+        const preview = document.getElementById('badgePreview');
+        const placeholder = document.getElementById('badgePreviewPlaceholder');
+        if (!preview || !placeholder) return;
+
+        if (file) {
+            const url = URL.createObjectURL(file);
+            preview.src = url;
+            preview.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+        } else {
+            preview.src = "";
+            preview.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+        }
+    });
+
+    // expose for edit mode
+    window.setBadgeUI = setBadgeUI;
 </script>

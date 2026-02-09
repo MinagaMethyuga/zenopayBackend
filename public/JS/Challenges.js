@@ -1,420 +1,236 @@
-document.addEventListener('DOMContentLoaded', () => {
+// public/JS/Challenges.js
 
-    /* =======================
-       CSRF TOKEN (GLOBAL SAFE)
-    ======================= */
-    window.csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+function $(id) {
+    return document.getElementById(id);
+}
 
-    if (!window.csrfToken) {
-        console.error('CSRF token not found!');
-    }
+function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
 
+window.openCreatePanel = function openCreatePanel() {
+    const panel = $('createPanel');
+    if (!panel) return;
 
-    /* =======================
-       PANEL MANAGEMENT
-    ======================= */
-    window.openCreatePanel = function () {
-        resetForm();
-        document.getElementById('panelTitle').textContent = 'Create Challenge';
-        document.getElementById('saveButtonText').textContent = 'Save Challenge';
-        document.getElementById('createPanel').classList.remove('translate-x-full');
-    };
+    // Reset panel title + button text (guarded)
+    const title = $('panelTitle');
+    if (title) title.textContent = 'Create Challenge';
 
-    function openEditPanel() {
-        document.getElementById('panelTitle').textContent = 'Edit Challenge';
-        document.getElementById('saveButtonText').textContent = 'Update Challenge';
-        document.getElementById('createPanel').classList.remove('translate-x-full');
-    }
+    const btnText = $('saveButtonText');
+    if (btnText) btnText.textContent = 'Save Challenge';
 
-    window.closeCreatePanel = function () {
-        document.getElementById('createPanel').classList.add('translate-x-full');
-    };
-
-    function resetForm() {
-        const form = document.getElementById('challengeForm');
+    // Reset form fields
+    const form = $('challengeForm');
+    if (form) {
+        form.setAttribute('action', form.getAttribute('action') || '');
         form.reset();
-
-        document.getElementById('challengeId').value = '';
-        document.getElementById('unlockBadge').value = '0';
-        document.getElementById('isActive').value = '1';
-
-        updateBadgeToggle(false);
-        updateActiveToggle(true);
     }
 
+    if ($('challengeId')) $('challengeId').value = '';
 
-    /* =======================
-       TOGGLES (FORM)
-    ======================= */
-    window.toggleBadge = function () {
-        const input = document.getElementById('unlockBadge');
-        input.value = input.value === '1' ? '0' : '1';
-        updateBadgeToggle(input.value === '1');
-    };
+    // Win condition defaults
+    if ($('winConditionType')) $('winConditionType').value = '';
+    if ($('winConditionCategory')) $('winConditionCategory').value = '';
+    if ($('winConditionMinAmount')) $('winConditionMinAmount').value = '';
+    if ($('winConditionSumAmount')) $('winConditionSumAmount').checked = false;
 
-    function updateBadgeToggle(active) {
-        const toggle = document.getElementById('badgeToggle');
-        const knob = toggle.querySelector('span');
+    // Default toggles
+    if ($('isActive')) $('isActive').value = '1';
+    if ($('unlockBadge')) $('unlockBadge').value = '0';
 
-        toggle.classList.toggle('bg-primary', active);
-        toggle.classList.toggle('bg-[#224932]', !active);
+    // Ensure badge UI hides + clears preview
+    if (window.setBadgeUI) window.setBadgeUI(false, '');
 
-        knob.classList.toggle('left-7', active);
-        knob.classList.toggle('left-1', !active);
+    // Open panel
+    panel.classList.remove('translate-x-full');
+    panel.classList.add('translate-x-0');
+};
+
+window.closeCreatePanel = function closeCreatePanel() {
+    const panel = $('createPanel');
+    if (!panel) return;
+    panel.classList.add('translate-x-full');
+    panel.classList.remove('translate-x-0');
+};
+
+window.toggleActive = function toggleActive() {
+    const hidden = $('isActive');
+    const toggle = $('activeToggle');
+    if (!hidden || !toggle) return;
+
+    const isOn = hidden.value === '1';
+    hidden.value = isOn ? '0' : '1';
+
+    // keep same UI style (just flip knob)
+    const knob = toggle.querySelector('span');
+    if (!knob) return;
+
+    if (hidden.value === '1') {
+        toggle.classList.add('bg-primary');
+        knob.classList.add('right-1');
+        knob.classList.remove('left-1');
+    } else {
+        toggle.classList.remove('bg-primary');
+        knob.classList.add('left-1');
+        knob.classList.remove('right-1');
+    }
+};
+
+window.saveChallenge = async function saveChallenge() {
+    const form = $('challengeForm');
+    if (!form) return;
+
+    if (!form.reportValidity()) return;
+
+    const action = form.getAttribute('action');
+    if (!action) {
+        console.error('Form action missing');
+        return;
     }
 
-    window.toggleActive = function () {
-        const input = document.getElementById('isActive');
-        input.value = input.value === '1' ? '0' : '1';
-        updateActiveToggle(input.value === '1');
-    };
+    const fd = new FormData(form);
 
-    function updateActiveToggle(active) {
-        const toggle = document.getElementById('activeToggle');
-        const knob = toggle.querySelector('span');
+    try {
+        const res = await fetch(action, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken(),
+                'Accept': 'application/json'
+            },
+            body: fd,
+            credentials: 'same-origin'
+        });
 
-        toggle.classList.toggle('bg-primary', active);
-        toggle.classList.toggle('bg-[#224932]', !active);
-
-        knob.classList.toggle('right-1', active);
-        knob.classList.toggle('left-1', !active);
-    }
-
-
-    /* =======================
-       FREQUENCY MAPPING
-    ======================= */
-    function mapFrequency(value) {
-        return {
-            daily: 'Daily',
-            weekly: 'Weekly',
-            monthly: 'Monthly',
-            quarterly: 'Quarterly',
-            yearly: 'Yearly',
-            one_time: 'One-Time'
-        }[value] || 'Weekly';
-    }
-
-    function mapFrequencyToValue(value) {
-        return {
-            'daily': 'daily',
-            'weekly': 'weekly',
-            'monthly': 'monthly',
-            'quarterly': 'quarterly',
-            'yearly': 'yearly',
-            'one-time': 'one_time'
-        }[(value || '').toLowerCase()] || 'weekly';
-    }
-
-
-    /* =======================
-       SAVE (CREATE / UPDATE)
-    ======================= */
-    window.saveChallenge = async function () {
-        const form = document.getElementById('challengeForm');
-        const formData = new FormData(form);
-        const challengeId = document.getElementById('challengeId').value;
-
-        const payload = {
-            name: formData.get('name'),
-            description: formData.get('description'),
-            difficulty: formData.get('difficulty'),
-            category: formData.get('category'),
-            frequency: mapFrequency(formData.get('frequency')),
-            target_value: formData.get('target_value'),
-            duration: formData.get('duration'),
-            icon: formData.get('icon') || '🎯',
-            xp_reward: Number(formData.get('xp_reward')) || 0,
-            unlock_badge: Number(formData.get('unlock_badge')),
-            is_active: Number(formData.get('is_active')),
-        };
-
-        if (challengeId) payload._method = 'PUT';
-
-        try {
-            const response = await fetch(
-                challengeId ? `/challenges/${challengeId}` : '/challenges',
-                {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': window.csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                showNotification('Error', result.message || 'Validation failed', 'error');
-                return;
-            }
-
-            showNotification('Success', 'Challenge saved successfully', 'success');
-            closeCreatePanel();
-            setTimeout(() => location.reload(), 700);
-        } catch (error) {
-            console.error('Save error:', error);
-            showNotification('Error', 'Failed to save challenge', 'error');
-        }
-    };
-
-
-    /* =======================
-       EDIT CHALLENGE
-    ======================= */
-    window.editChallenge = async function (id) {
-        try {
-            const response = await fetch(`/challenges/${id}`, {
-                headers: { 'Accept': 'application/json' }
-            });
-
-            const c = await response.json();
-
-            document.getElementById('challengeId').value = c.id;
-            document.getElementById('challengeName').value = c.name;
-            document.getElementById('challengeDescription').value = c.description;
-            document.getElementById('challengeDifficulty').value = c.difficulty;
-            document.getElementById('challengeCategory').value = c.category;
-            document.getElementById('challengeFrequency').value = mapFrequencyToValue(c.frequency);
-            document.getElementById('challengeTarget').value = c.target_value || '';
-            document.getElementById('challengeDuration').value = c.duration || '';
-            document.getElementById('challengeIcon').value = c.icon || '🎯';
-            document.getElementById('challengeXP').value = c.xp_reward;
-
-            document.getElementById('unlockBadge').value = c.unlock_badge ? '1' : '0';
-            document.getElementById('isActive').value = c.is_active ? '1' : '0';
-
-            updateBadgeToggle(c.unlock_badge);
-            updateActiveToggle(c.is_active);
-
-            openEditPanel();
-        } catch (error) {
-            console.error('Edit error:', error);
-            showNotification('Error', 'Failed to load challenge', 'error');
-        }
-    };
-
-
-    /* =======================
-       🔥 TOGGLE CHALLENGE STATUS (FIXED)
-    ======================= */
-    window.toggleChallengeStatus = async function (id) {
-        console.log('Toggle called for ID:', id);
-
-        const card = document.querySelector(`[data-challenge-id="${id}"]`);
-        if (!card) {
-            console.error('Card not found for ID:', id);
-            showNotification('Error', 'Challenge card not found', 'error');
+        if (res.status === 419) {
+            alert('CSRF token mismatch. Refresh the page and try again.');
             return;
         }
 
-        const button = card.querySelector('button[onclick*="toggleChallengeStatus"]');
-        const statusWrap = card.querySelector('.flex.items-center.gap-2');
-        const icon = button?.querySelector('.material-symbols-outlined');
-
-        if (!button || !icon) {
-            console.error('Button or icon not found', { button, icon });
-            showNotification('Error', 'Button elements not found', 'error');
+        if (!res.ok) {
+            const text = await res.text();
+            console.error('Save failed:', res.status, text);
+            alert('Failed to save. Check console.');
             return;
         }
 
-        console.log('Elements found, making API call...');
+        window.location.reload();
+    } catch (err) {
+        console.error(err);
+        alert('Network error while saving.');
+    }
+};
 
-        // Disable button during request
-        button.disabled = true;
-        button.classList.add('opacity-50', 'pointer-events-none');
+// Called by edit icon
+window.editChallenge = async function editChallenge(id) {
+    const panel = $('createPanel');
+    if (!panel) return;
 
-        try {
-            const response = await fetch(`/challenges/${id}/toggle`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': window.csrfToken,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                }
-            });
+    // Set panel title + button text
+    const title = $('panelTitle');
+    if (title) title.textContent = 'Edit Challenge';
 
-            console.log('Response status:', response.status);
+    const btnText = $('saveButtonText');
+    if (btnText) btnText.textContent = 'Update Challenge';
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to toggle status');
-            }
+    // Open panel
+    panel.classList.remove('translate-x-full');
+    panel.classList.add('translate-x-0');
 
-            const result = await response.json();
-            console.log('Toggle result:', result);
+    try {
+        const res = await fetch(`/challenges/${id}`, {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        });
 
-            const isActive = result.is_active;
-
-            // Update card data attribute
-            card.dataset.status = isActive ? 'active' : 'inactive';
-
-            // Update button icon and title
-            icon.textContent = isActive ? 'power_settings_new' : 'play_arrow';
-            button.title = isActive ? 'Disable' : 'Enable';
-
-            // Update button hover classes
-            button.classList.remove('hover:bg-red-500/20', 'hover:text-red-400', 'hover:bg-emerald-500/20', 'hover:text-emerald-400');
-            if (isActive) {
-                button.classList.add('hover:bg-red-500/20', 'hover:text-red-400');
-            } else {
-                button.classList.add('hover:bg-emerald-500/20', 'hover:text-emerald-400');
-            }
-
-            // Update card opacity
-            if (isActive) {
-                card.classList.remove('opacity-75', 'hover:opacity-100');
-            } else {
-                card.classList.add('opacity-75', 'hover:opacity-100');
-            }
-
-            // Update glow effect in background
-            const glowDiv = card.querySelector('.absolute.top-0.right-0');
-            if (glowDiv) {
-                glowDiv.classList.remove('bg-slate-500/5', 'bg-primary/5');
-                glowDiv.classList.add(isActive ? 'bg-primary/5' : 'bg-slate-500/5');
-            }
-
-            // Update XP reward color
-            const xpReward = card.querySelector('.font-black.text-xl');
-            if (xpReward) {
-                xpReward.classList.remove('text-primary', 'text-white/50');
-                xpReward.classList.add(isActive ? 'text-primary' : 'text-white/50');
-            }
-
-            // Update status indicator
-            statusWrap.innerHTML = isActive
-                ? `
-                    <span class="relative flex h-3 w-3">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                    </span>
-                    <span class="text-sm text-white font-medium">Active</span>
-                  `
-                : `
-                    <span class="h-3 w-3 rounded-full bg-slate-500"></span>
-                    <span class="text-sm text-slate-400 font-medium">Inactive</span>
-                  `;
-
-            showNotification(
-                'Success',
-                isActive ? 'Challenge activated successfully' : 'Challenge deactivated successfully',
-                'success'
-            );
-
-        } catch (err) {
-            console.error('Toggle error:', err);
-            showNotification('Error', err.message || 'Failed to update challenge status', 'error');
-        } finally {
-            button.disabled = false;
-            button.classList.remove('opacity-50', 'pointer-events-none');
+        if (!res.ok) {
+            const t = await res.text();
+            console.error('Fetch challenge failed:', res.status, t);
+            alert('Failed to load challenge.');
+            return;
         }
-    };
 
+        const data = await res.json();
 
-    /* =======================
-       SEARCH FUNCTIONALITY
-    ======================= */
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const cards = document.querySelectorAll('.challenge-card');
+        if ($('challengeId')) $('challengeId').value = data.id ?? '';
+        if ($('challengeName')) $('challengeName').value = data.name ?? '';
+        if ($('challengeDescription')) $('challengeDescription').value = data.description ?? '';
+        if ($('challengeDifficulty')) $('challengeDifficulty').value = data.difficulty ?? 'Easy';
+        if ($('challengeCategory')) $('challengeCategory').value = data.category ?? 'Savings';
 
-            cards.forEach(card => {
-                const name = card.querySelector('h4').textContent.toLowerCase();
-                const description = card.querySelector('.line-clamp-2').textContent.toLowerCase();
+        // frequency mapping (DB might store "Daily" but UI options are lowercase)
+        if ($('challengeFrequency')) {
+            const freq = (data.frequency || '').toLowerCase().replace('-', '_');
+            $('challengeFrequency').value = freq || 'weekly';
+        }
 
-                if (name.includes(searchTerm) || description.includes(searchTerm)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
-    }
+        if ($('challengeTarget')) $('challengeTarget').value = data.target_value ?? '';
+        if ($('challengeDuration')) $('challengeDuration').value = data.duration ?? '';
+        if ($('challengeIcon')) $('challengeIcon').value = data.icon ?? '';
+        if ($('challengeXP')) $('challengeXP').value = data.xp_reward ?? 0;
 
+        // Win condition fields
+        var wc = data.win_conditions || {};
+        if ($('winConditionType')) $('winConditionType').value = wc.transaction_type ?? '';
+        if ($('winConditionCategory')) $('winConditionCategory').value = wc.transaction_category ?? '';
+        if ($('winConditionMinAmount')) $('winConditionMinAmount').value = wc.min_amount ?? '';
+        if ($('winConditionSumAmount')) $('winConditionSumAmount').checked = !!wc.sum_amount;
 
-    /* =======================
-       FILTER FUNCTIONALITY
-    ======================= */
-    window.filterChallenges = function(filter) {
-        const cards = document.querySelectorAll('.challenge-card');
-        const buttons = document.querySelectorAll('.filter-btn');
+        if ($('isActive')) $('isActive').value = data.is_active ? '1' : '0';
 
-        // Update button styles
-        buttons.forEach(btn => {
-            if (btn.dataset.filter === filter) {
-                btn.classList.add('bg-[#1A1D21]', 'text-white', 'border-primary/40', 'shadow-[0_0_10px_rgba(37,244,120,0.1)]');
-                btn.classList.remove('text-[#90cba8]', 'border-transparent');
-            } else {
-                btn.classList.remove('bg-[#1A1D21]', 'text-white', 'border-primary/40', 'shadow-[0_0_10px_rgba(37,244,120,0.1)]');
-                btn.classList.add('text-[#90cba8]', 'border-transparent');
+        // 🔥 IMPORTANT: show/hide upload section + preview on edit
+        if (window.setBadgeUI) {
+            window.setBadgeUI(!!data.unlock_badge, data.badge_image_url || '');
+        } else if ($('unlockBadge')) {
+            $('unlockBadge').value = data.unlock_badge ? '1' : '0';
+        }
+
+        // Set form action to update endpoint (POST + _method=PUT)
+        const form = $('challengeForm');
+        if (form) {
+            form.setAttribute('action', `/challenges/${id}`);
+
+            // ensure method spoof exists
+            let methodInput = form.querySelector('input[name="_method"]');
+            if (!methodInput) {
+                methodInput = document.createElement('input');
+                methodInput.type = 'hidden';
+                methodInput.name = '_method';
+                form.appendChild(methodInput);
             }
-        });
-
-        // Filter cards
-        cards.forEach(card => {
-            if (filter === 'all') {
-                card.style.display = 'block';
-            } else if (filter === 'active') {
-                card.style.display = card.dataset.status === 'active' ? 'block' : 'none';
-            } else if (filter === 'inactive') {
-                card.style.display = card.dataset.status === 'inactive' ? 'block' : 'none';
-            }
-        });
-    };
-
-
-    /* =======================
-       SORT FUNCTIONALITY
-    ======================= */
-    window.sortChallenges = function(sortBy) {
-        const grid = document.getElementById('challengesGrid');
-        const cards = Array.from(grid.querySelectorAll('.challenge-card'));
-
-        cards.sort((a, b) => {
-            const aXP = parseInt(a.querySelector('.font-black.text-xl').textContent.replace(/\D/g, ''));
-            const bXP = parseInt(b.querySelector('.font-black.text-xl').textContent.replace(/\D/g, ''));
-            return bXP - aXP; // Descending order
-        });
-
-        cards.forEach(card => grid.appendChild(card));
-        showNotification('Sorted', 'Challenges sorted by XP', 'success');
-    };
-
-
-    /* =======================
-       NOTIFICATION
-    ======================= */
-    function showNotification(title, message, type) {
-        const note = document.createElement('div');
-        note.className = `fixed top-4 right-4 z-50 bg-[#121417] border ${type === 'success' ? 'border-primary' : 'border-red-500'} rounded-xl p-4 shadow-2xl min-w-[300px] transition-opacity`;
-        note.style.opacity = '0';
-        note.innerHTML = `
-            <div class="flex items-start gap-3">
-                <span class="material-symbols-outlined ${type === 'success' ? 'text-primary' : 'text-red-500'}">
-                    ${type === 'success' ? 'check_circle' : 'error'}
-                </span>
-                <div>
-                    <strong class="text-white font-bold block mb-1">${title}</strong>
-                    <span class="text-[#90cba8] text-sm">${message}</span>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(note);
-
-        // Animate in
-        setTimeout(() => note.style.opacity = '1', 10);
-
-        // Remove after 3 seconds
-        setTimeout(() => {
-            note.style.opacity = '0';
-            setTimeout(() => note.remove(), 300);
-        }, 3000);
+            methodInput.value = 'PUT';
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Network error while loading challenge.');
     }
+};
 
-});
+window.toggleChallengeStatus = async function toggleChallengeStatus(id) {
+    try {
+        const res = await fetch(`/challenges/${id}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken(),
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        });
+
+        if (!res.ok) {
+            const t = await res.text();
+            console.error('Toggle status failed:', res.status, t);
+            alert('Failed to toggle status.');
+            return;
+        }
+
+        window.location.reload();
+    } catch (err) {
+        console.error(err);
+        alert('Network error while toggling status.');
+    }
+};
+
+// If your UI uses filters/sorts (safe no-ops if not implemented)
+window.filterChallenges = window.filterChallenges || function () {};
+window.sortChallenges = window.sortChallenges || function () {};

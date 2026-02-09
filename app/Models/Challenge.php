@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Challenge extends Model
 {
@@ -17,6 +18,7 @@ class Challenge extends Model
         'frequency',
         'xp_reward',
         'unlock_badge',
+        'badge_image',
         'icon',
         'target_type',
         'target_value',
@@ -26,12 +28,21 @@ class Challenge extends Model
         'win_conditions'
     ];
 
+    protected $appends = [
+        'badge_image_url',
+    ];
+
     protected $casts = [
         'unlock_badge' => 'boolean',
         'is_active' => 'boolean',
         'win_conditions' => 'array',
         'xp_reward' => 'integer'
     ];
+
+    public function getBadgeImageUrlAttribute(): ?string
+    {
+        return $this->badge_image ? Storage::url($this->badge_image) : null;
+    }
 
     public function getDifficultyColorAttribute()
     {

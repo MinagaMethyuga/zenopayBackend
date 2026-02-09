@@ -2,24 +2,24 @@
 
 use Illuminate\Support\Facades\Route;
 
-// Existing controllers
-use App\Http\Controllers\Transactions;
-use App\Http\Controllers\Api\ChallengesApiController;
-
-// Auth + onboarding
 use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\Transactions;
+
+use App\Http\Controllers\Api\ChallengesApiController;
+use App\Http\Controllers\Api\UserChallengesApiController;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes (prefixed with /api)
+| API Routes
 |--------------------------------------------------------------------------
+| /api/*
+| Your app is using session auth, so keep web middleware.
 */
 
-// --------------------
-// ✅ Session-based Auth (needs web middleware for sessions)
-// --------------------
 Route::middleware('web')->group(function () {
+
+    // Auth (session)
     Route::prefix('auth')->group(function () {
         Route::post('/register', [AuthSessionController::class, 'register']);
         Route::post('/login', [AuthSessionController::class, 'login']);
@@ -29,24 +29,25 @@ Route::middleware('web')->group(function () {
 
     Route::post('/onboarding', [OnboardingController::class, 'store']);
 
-    // --------------------
-    // ✅ Transactions MUST be authenticated
-    // --------------------
+    // Logged-in only
     Route::middleware('auth')->group(function () {
+
+        // ✅ Transactions (ONLY these - Option A)
         Route::get('/transactions', [Transactions::class, 'index']);
         Route::post('/transactions', [Transactions::class, 'store']);
-        Route::post('/income', [Transactions::class, 'Income']);
-        Route::post('/expense', [Transactions::class, 'Expense']);
+
+        // ✅ Accept quest (must be authenticated)
+        Route::post('/challenges/{id}/accept', [ChallengesApiController::class, 'accept']);
+
+        // ✅ Active/Completed quests for tabs
+        Route::get('/my-challenges', [UserChallengesApiController::class, 'index']);
     });
 });
 
-// --------------------
-// Challenges (leave as-is if it currently works for you)
-// --------------------
+// Public challenge catalogue (Suggested tab)
 Route::prefix('challenges')->group(function () {
     Route::get('/', [ChallengesApiController::class, 'index']);
     Route::get('/daily', [ChallengesApiController::class, 'daily']);
     Route::get('/stats', [ChallengesApiController::class, 'stats']);
     Route::get('/{id}', [ChallengesApiController::class, 'show']);
-    Route::post('/{id}/accept', [ChallengesApiController::class, 'accept']);
 });

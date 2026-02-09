@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 
+use App\Services\ChallengeProgressService; // ✅ ADD
+
 class Transactions extends Controller
 {
     public function store(Request $request)
@@ -19,12 +21,10 @@ class Transactions extends Controller
             'category' => ['required', 'string', 'max:80'],
             'icon_key' => ['nullable', 'string', 'max:60'],
             'note' => ['nullable', 'string', 'max:500'],
-
             'payment_method' => [
                 'required',
                 Rule::in(['cash', 'card', 'bank_transfer', 'mobile_wallet', 'cheque', 'other']),
             ],
-
             'occurred_at' => ['required', 'date'],
             'source' => ['sometimes', Rule::in(['manual', 'sms', 'import'])],
         ]);
@@ -35,20 +35,16 @@ class Transactions extends Controller
         DB::transaction(function () use ($user, $data, &$tx, &$updatedWallet) {
             $amount = (float) $data['amount'];
 
-            // Expense = subtract, Income = add
             $delta = $data['type'] === 'expense' ? -$amount : $amount;
 
-            // Map payment_method -> wallet type (your app uses cash vs bank_transfer)
             $walletType = $data['payment_method'] === 'cash' ? 'cash' : 'bank';
 
-            // Lock wallet row (avoid race conditions)
             $wallet = DB::table('wallets')
                 ->where('user_id', $user->id)
                 ->where('type', $walletType)
                 ->lockForUpdate()
                 ->first();
 
-            // If wallet row doesn't exist yet, create it (safe default)
             if (!$wallet) {
                 DB::table('wallets')->insert([
                     'user_id' => $user->id,
@@ -71,7 +67,6 @@ class Transactions extends Controller
             $currentBalance = (float) ($wallet->balance ?? 0);
             $newBalance = $currentBalance + $delta;
 
-            // Block negative (so your 422 makes sense)
             if ($newBalance < 0) {
                 abort(response()->json([
                     'ok' => false,
@@ -83,7 +78,6 @@ class Transactions extends Controller
                 ], 422));
             }
 
-            // Update wallet balance
             DB::table('wallets')
                 ->where('id', $wallet->id)
                 ->update([
@@ -91,7 +85,6 @@ class Transactions extends Controller
                     'updated_at' => now(),
                 ]);
 
-            // Save transaction
             $tx = Transaction::create([
                 'user_id' => $user->id,
                 'type' => $data['type'],
@@ -109,6 +102,11 @@ class Transactions extends Controller
                 'balance' => round($newBalance, 2),
             ];
         });
+
+        // ✅ STEP 9: Update challenge progress AFTER the transaction is committed
+        if ($tx) {
+            ChallengeProgressService::handleNewTransaction($tx);
+        }
 
         return response()->json([
             'ok' => true,
