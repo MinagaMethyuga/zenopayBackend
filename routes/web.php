@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\ChallengeController;
+use App\Http\Controllers\OnboardingController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
@@ -21,6 +23,7 @@ Route::get('/challenges/{challenge}', [ChallengeController::class, 'show'])->nam
 Route::put('/challenges/{challenge}', [ChallengeController::class, 'update'])->name('challenges.update');
 Route::post('/challenges/{challenge}/toggle', [ChallengeController::class, 'toggleStatus'])->name('challenges.toggle');
 Route::delete('/challenges/{challenge}', [ChallengeController::class, 'destroy'])->name('challenges.destroy');
+
 
 //Route::view('dashboard', 'dashboard')
 //    ->middleware(['auth', 'verified'])

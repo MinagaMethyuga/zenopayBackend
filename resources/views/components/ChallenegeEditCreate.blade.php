@@ -1,12 +1,19 @@
 <div id="createPanel" class="absolute inset-y-0 right-0 w-full md:w-[480px] bg-[#121417] shadow-[-10px_0_30px_rgba(0,0,0,0.8)] border-l border-[#224932] transform translate-x-full transition-transform duration-300 flex flex-col z-50">
     <div class="flex items-center justify-between px-6 py-5 border-b border-[#224932]">
         <h3 id="panelTitle" class="text-white text-xl font-bold">Create Challenge</h3>
-        <button onclick="closeCreatePanel()" class="size-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors">
+        <button type="button" onclick="closeCreatePanel()" class="size-8 flex items-center justify-center rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-colors">
             <span class="material-symbols-outlined">close</span>
         </button>
     </div>
 
-    <form id="challengeForm" class="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+    {{-- ✅ IMPORTANT: method + action must exist --}}
+    <form
+        id="challengeForm"
+        method="POST"
+        action="{{ route('challenges.store') }}"
+        class="flex-1 overflow-y-auto p-6 flex flex-col gap-6"
+    >
+        @csrf
         <input type="hidden" id="challengeId" name="id">
 
         <div class="flex flex-col gap-4">
@@ -117,10 +124,70 @@
     </form>
 
     <div class="p-6 border-t border-[#224932] bg-[#121417] flex gap-3">
-        <button onclick="closeCreatePanel()" class="flex-1 py-3 px-4 rounded-full border border-[#224932] text-white hover:bg-white/5 font-medium transition-colors">Cancel</button>
-        <button onclick="saveChallenge()" class="flex-1 py-3 px-4 rounded-full bg-primary text-[#0D0F10] font-bold hover:bg-[#1ee86e] transition-colors shadow-neon flex items-center justify-center gap-2">
+        <button type="button" onclick="closeCreatePanel()" class="flex-1 py-3 px-4 rounded-full border border-[#224932] text-white hover:bg-white/5 font-medium transition-colors">Cancel</button>
+
+        {{-- ✅ Keep your UI button, but it triggers AJAX that sends CSRF header correctly --}}
+        <button type="button" onclick="saveChallenge()" class="flex-1 py-3 px-4 rounded-full bg-primary text-[#0D0F10] font-bold hover:bg-[#1ee86e] transition-colors shadow-neon flex items-center justify-center gap-2">
             <span class="material-symbols-outlined">save</span>
             <span id="saveButtonText">Save Challenge</span>
         </button>
     </div>
 </div>
+
+<script>
+    function getCsrfToken() {
+        // Prefer meta tag
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
+
+        // Fallback to hidden input in the form
+        const form = document.getElementById('challengeForm');
+        const input = form ? form.querySelector('input[name="_token"]') : null;
+        return input ? input.value : '';
+    }
+
+    async function saveChallenge() {
+        const form = document.getElementById('challengeForm');
+        if (!form) return;
+
+        // Basic HTML validation (keeps your UI)
+        if (!form.reportValidity()) return;
+
+        const url = form.getAttribute('action');
+        const token = getCsrfToken();
+
+        const formData = new FormData(form);
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': token,
+                    'Accept': 'application/json'
+                },
+                body: formData,
+                credentials: 'same-origin'
+            });
+
+            if (res.status === 419) {
+                alert('CSRF token mismatch. Refresh the page and try again.');
+                return;
+            }
+
+            // If your controller redirects, fetch will follow but we still can handle ok
+            if (!res.ok) {
+                const text = await res.text();
+                console.error('Save challenge failed:', res.status, text);
+                alert('Failed to save challenge. Check console/logs.');
+                return;
+            }
+
+            // If controller returns JSON, good. If it redirects, also ok.
+            // Best UX: just reload list
+            window.location.reload();
+        } catch (e) {
+            console.error(e);
+            alert('Network error while saving challenge.');
+        }
+    }
+</script>
