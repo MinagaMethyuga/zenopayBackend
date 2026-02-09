@@ -17,26 +17,7 @@ use App\Http\Controllers\OnboardingController;
 */
 
 // --------------------
-// Transactions
-// --------------------
-Route::get('/transactions', [Transactions::class, 'index']);
-Route::post('/transactions', [Transactions::class, 'store']);
-Route::post('/income', [Transactions::class, 'Income']);
-Route::post('/expense', [Transactions::class, 'Expense']);
-
-// --------------------
-// Challenges
-// --------------------
-Route::prefix('challenges')->group(function () {
-    Route::get('/', [ChallengesApiController::class, 'index']);
-    Route::get('/daily', [ChallengesApiController::class, 'daily']);
-    Route::get('/stats', [ChallengesApiController::class, 'stats']);
-    Route::get('/{id}', [ChallengesApiController::class, 'show']);
-    Route::post('/{id}/accept', [ChallengesApiController::class, 'accept']);
-});
-
-// --------------------
-// ✅ Session-based Auth + Onboarding (needs web middleware for sessions)
+// ✅ Session-based Auth (needs web middleware for sessions)
 // --------------------
 Route::middleware('web')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -47,4 +28,25 @@ Route::middleware('web')->group(function () {
     });
 
     Route::post('/onboarding', [OnboardingController::class, 'store']);
+
+    // --------------------
+    // ✅ Transactions MUST be authenticated
+    // --------------------
+    Route::middleware('auth')->group(function () {
+        Route::get('/transactions', [Transactions::class, 'index']);
+        Route::post('/transactions', [Transactions::class, 'store']);
+        Route::post('/income', [Transactions::class, 'Income']);
+        Route::post('/expense', [Transactions::class, 'Expense']);
+    });
+});
+
+// --------------------
+// Challenges (leave as-is if it currently works for you)
+// --------------------
+Route::prefix('challenges')->group(function () {
+    Route::get('/', [ChallengesApiController::class, 'index']);
+    Route::get('/daily', [ChallengesApiController::class, 'daily']);
+    Route::get('/stats', [ChallengesApiController::class, 'stats']);
+    Route::get('/{id}', [ChallengesApiController::class, 'show']);
+    Route::post('/{id}/accept', [ChallengesApiController::class, 'accept']);
 });
