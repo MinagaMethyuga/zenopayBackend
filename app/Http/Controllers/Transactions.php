@@ -34,7 +34,7 @@ class Transactions extends Controller
         $tx = null;
         $updatedWallet = null;
 
-        DB::transaction(function () use ($user, $data, $xpService, &$tx, &$updatedWallet) {
+        DB::transaction(function () use ($user, $data, $xpService, $streakService, &$tx, &$updatedWallet) {
             $amount = (float) $data['amount'];
 
             $delta = $data['type'] === 'expense' ? -$amount : $amount;
@@ -102,17 +102,18 @@ class Transactions extends Controller
             // Award XP exactly once per newly created transaction (atomic with the insert).
             $xpService->awardForNewTransaction($user);
 
+            // Update streak in same transaction for consistency.
+            $streakService->registerTransaction($user, $tx->occurred_at);
+
             $updatedWallet = [
                 'type' => $walletType,
                 'balance' => round($newBalance, 2),
             ];
         });
 
-        // ✅ STEP 9: Update challenge progress AFTER the transaction is committed
+        // Update challenge progress after the transaction is committed.
         if ($tx) {
             ChallengeProgressService::handleNewTransaction($tx);
-            // And update the user's daily streak (login + transaction on same calendar day).
-            $streakService->registerTransaction($user, $tx->occurred_at);
         }
 
         return response()->json([

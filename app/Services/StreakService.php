@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\UserProfile;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class StreakService
 {
@@ -17,7 +18,7 @@ class StreakService
      */
     public function registerLogin(User $user): void
     {
-        $today = now()->toDateString();
+        $today = $this->todayAppDateString();
 
         UserProfile::query()
             ->where('user_id', $user->getKey())
@@ -27,62 +28,53 @@ class StreakService
     /**
      * Call when a new transaction is created.
      *
-     * Rule:
-     * - A day only counts as a "streak day" if the user:
-     *   1) logged in that calendar day, AND
-     *   2) created at least one transaction on that same calendar day.
-     *
-     * We increment the streak at most once per calendar day.
+     * - If user already has a streak updated today (last_activity_date = today): do NOT increment.
+     * - If last streak update was yesterday: increment current_streak by 1 and update best_streak if needed.
+     * - If last streak update was older than yesterday or null: reset current_streak to 1.
+     * - Always set last_activity_date to the transaction's activity day (in app timezone).
      */
     public function registerTransaction(User $user, \DateTimeInterface $occurredAt): void
     {
-        $activityDay = Carbon::instance($occurredAt)->toDateString();
+        $tz = config('app.timezone', 'UTC');
+        $activityDay = Carbon::parse($occurredAt)->timezone($tz)->toDateString();
 
-        DB::transaction(function () use ($user, $activityDay) {
+        DB::transaction(function () use ($user, $activityDay, $tz) {
             /** @var UserProfile|null $profile */
             $profile = UserProfile::query()
                 ->where('user_id', $user->getKey())
                 ->lockForUpdate()
                 ->first();
 
-            if (!$profile) {
-                return;
-            }
-
-            // Require that the user has logged in on this same calendar day.
-            $lastLoginDay = $profile->last_login_date
-                ? $profile->last_login_date->toDateString()
-                : null;
-
-            if ($lastLoginDay !== $activityDay) {
-                // User did not log in on this day, so we do NOT count it for streak.
+            if (! $profile) {
                 return;
             }
 
             $lastActivityDay = $profile->last_activity_date
-                ? $profile->last_activity_date->toDateString()
+                ? Carbon::parse($profile->last_activity_date)->timezone($tz)->toDateString()
                 : null;
 
-            // Already counted this calendar day for streak – nothing to do.
+            $today = $this->todayAppDateString();
+
+            // Already counted this calendar day for streak – do not increment.
             if ($lastActivityDay === $activityDay) {
                 return;
             }
 
-            // First ever streak day.
             if ($lastActivityDay === null) {
+                // First ever streak day or gap: reset to 1.
                 $profile->current_streak = 1;
             } else {
-                $diffInDays = Carbon::parse($lastActivityDay)->diffInDays($activityDay);
+                $diffInDays = (int) Carbon::parse($lastActivityDay)->timezone($tz)->diffInDays(
+                    Carbon::parse($activityDay)->timezone($tz),
+                    false
+                );
 
                 if ($diffInDays === 1) {
-                    // Consecutive day – continue the streak.
+                    // Consecutive day – increment.
                     $profile->current_streak = (int) $profile->current_streak + 1;
-                } elseif ($diffInDays > 1) {
-                    // Break in the streak – start over from 1.
-                    $profile->current_streak = 1;
                 } else {
-                    // Activity day is before last_activity_date; ignore.
-                    return;
+                    // Gap or same day (already handled): reset to 1.
+                    $profile->current_streak = 1;
                 }
             }
 
@@ -92,7 +84,18 @@ class StreakService
 
             $profile->last_activity_date = $activityDay;
             $profile->save();
+
+            Log::info('Streak updated after transaction', [
+                'user_id' => $user->getKey(),
+                'last_streak_date' => $lastActivityDay,
+                'current_streak' => (int) $profile->current_streak,
+                'best_streak' => (int) $profile->best_streak,
+            ]);
         });
     }
-}
 
+    private function todayAppDateString(): string
+    {
+        return now()->timezone(config('app.timezone', 'UTC'))->toDateString();
+    }
+}

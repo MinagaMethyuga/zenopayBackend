@@ -28,6 +28,8 @@ class UserResource extends JsonResource
             'total_xp' => $xp,
             'level' => $level,
             'xp_to_next_level' => $xpService->xpToNextLevel($xp),
+            'current_streak' => $profile ? (int) $profile->current_streak : 0,
+            'best_streak' => $profile ? (int) $profile->best_streak : 0,
         ]);
     }
 }
