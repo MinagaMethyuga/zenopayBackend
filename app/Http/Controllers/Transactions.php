@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Transaction;
 use App\Services\XpService;
+use App\Services\StreakService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ use App\Services\ChallengeProgressService; // ✅ ADD
 
 class Transactions extends Controller
 {
-    public function store(Request $request, XpService $xpService)
+    public function store(Request $request, XpService $xpService, StreakService $streakService)
     {
         $user = $request->user(); // session auth
 
@@ -110,6 +111,8 @@ class Transactions extends Controller
         // ✅ STEP 9: Update challenge progress AFTER the transaction is committed
         if ($tx) {
             ChallengeProgressService::handleNewTransaction($tx);
+            // And update the user's daily streak (login + transaction on same calendar day).
+            $streakService->registerTransaction($user, $tx->occurred_at);
         }
 
         return response()->json([

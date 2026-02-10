@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\StreakService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -43,7 +44,7 @@ class AuthSessionController extends Controller
         ], 201);
     }
 
-    public function login(Request $request)
+    public function login(Request $request, StreakService $streakService)
     {
         $data = $request->validate([
             'email' => ['required', 'email'],
@@ -55,6 +56,9 @@ class AuthSessionController extends Controller
         }
 
         $request->session()->regenerate();
+
+        // Mark that the user has logged in today (for streak tracking).
+        $streakService->registerLogin($request->user());
 
         return response()->json([
             'ok' => true,

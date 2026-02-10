@@ -18,6 +18,7 @@ return new class extends Migration {
 
             $table->unsignedInteger('current_streak')->default(0);
             $table->unsignedInteger('best_streak')->default(0);
+            // Last calendar day that counted towards the streak
             $table->date('last_activity_date')->nullable();
 
             $table->timestamps();

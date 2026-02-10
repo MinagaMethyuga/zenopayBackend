@@ -17,11 +17,13 @@ class UserProfile extends Model
         'current_streak',
         'best_streak',
         'last_activity_date',
+        'last_login_date',
     ];
 
     protected $casts = [
         'onboarded' => 'boolean',
         'last_activity_date' => 'date',
+        'last_login_date' => 'date',
     ];
 
     public function user()
