@@ -9,17 +9,17 @@
                 <p class="text-[#90cba8] text-xs font-normal tracking-wide uppercase px-1">Gamified Finance Sri Lanka</p>
             </div>
             <nav class="flex flex-col gap-2">
-                <a class="flex items-center gap-4 px-4 py-3 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors group" href="{{route('Dashboard')}}">
-                    <span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-colors">dashboard</span>
-                    <span class="text-sm font-medium">Dashboard</span>
+                <a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-colors group {{ request()->routeIs('Dashboard') ? 'bg-[#121417] border border-[#224932] text-white shadow-[inset_4px_0_0_0_#25f478]' : 'text-white/70 hover:text-white hover:bg-white/5' }}" href="{{ route('Dashboard') }}">
+                    <span class="material-symbols-outlined text-[24px] {{ request()->routeIs('Dashboard') ? 'text-primary' : 'group-hover:text-primary' }} transition-colors">dashboard</span>
+                    <span class="text-sm font-medium">{{ request()->routeIs('Dashboard') ? 'font-bold' : '' }}Dashboard</span>
                 </a>
-                <a class="flex items-center gap-4 px-4 py-3 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors group" href="{{route('UserManagement')}}">
-                    <span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-colors">group</span>
-                    <span class="text-sm font-medium">Users</span>
+                <a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-colors group {{ request()->routeIs('UserManagement') ? 'bg-[#121417] border border-[#224932] text-white shadow-[inset_4px_0_0_0_#25f478]' : 'text-white/70 hover:text-white hover:bg-white/5' }}" href="{{ route('UserManagement') }}">
+                    <span class="material-symbols-outlined text-[24px] {{ request()->routeIs('UserManagement') ? 'text-primary' : 'group-hover:text-primary' }} transition-colors">group</span>
+                    <span class="text-sm {{ request()->routeIs('UserManagement') ? 'font-bold' : 'font-medium' }}">Users</span>
                 </a>
-                <a class="flex items-center gap-4 px-4 py-3 bg-[#121417] border border-[#224932] text-white rounded-lg shadow-[inset_4px_0_0_0_#25f478]" href="{{route('challenges.index')}}">
-                    <span class="material-symbols-outlined text-[24px] text-primary fill-1">emoji_events</span>
-                    <span class="text-sm font-bold">Challenges</span>
+                <a class="flex items-center gap-4 px-4 py-3 rounded-lg transition-colors group {{ request()->routeIs('challenges.*') ? 'bg-[#121417] border border-[#224932] text-white shadow-[inset_4px_0_0_0_#25f478]' : 'text-white/70 hover:text-white hover:bg-white/5' }}" href="{{ route('challenges.index') }}">
+                    <span class="material-symbols-outlined text-[24px] {{ request()->routeIs('challenges.*') ? 'text-primary fill-1' : 'group-hover:text-primary' }} transition-colors">emoji_events</span>
+                    <span class="text-sm {{ request()->routeIs('challenges.*') ? 'font-bold' : 'font-medium' }}">Challenges</span>
                 </a>
                 <a class="flex items-center gap-4 px-4 py-3 text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors group" href="#">
                     <span class="material-symbols-outlined text-[24px] group-hover:text-primary transition-colors">account_balance_wallet</span>

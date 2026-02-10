@@ -1,19 +1,16 @@
 <?php
 
-use App\Http\Controllers\AuthSessionController;
 use App\Http\Controllers\ChallengeController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\UserManagementController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use Livewire\Volt\Volt;
 
-Route::get('/', function () {
-    return view('dashboard');
-})->name('Dashboard');
+Route::get('/', [DashboardController::class, '__invoke'])->name('Dashboard');
 
-Route::get('/UserManagement', function () {
-    return view('UserManagement');
-})->name('UserManagement');
+Route::get('/users', [UserManagementController::class, 'index'])->name('UserManagement');
 
 
 // Challenges routes

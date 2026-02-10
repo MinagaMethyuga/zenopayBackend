@@ -92,11 +92,13 @@
                             <div class="p-2 bg-[#1c1f26] rounded-lg text-primary">
                                 <span class="material-symbols-outlined text-[20px]">group</span>
                             </div>
-                            <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">+5%</span>
+                            @if(isset($userGrowth) && $userGrowth != 0)
+                                <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">{{ $userGrowth > 0 ? '+' : '' }}{{ $userGrowth }}%</span>
+                            @endif
                         </div>
                         <div>
                             <p class="text-gray-500 text-xs font-medium uppercase tracking-wider">Total Users</p>
-                            <h3 class="text-white text-2xl font-bold mt-1">12,450</h3>
+                            <h3 class="text-white text-2xl font-bold mt-1">{{ number_format($totalUsers) }}</h3>
                         </div>
                     </div>
                 </div>
@@ -107,11 +109,13 @@
                             <div class="p-2 bg-[#1c1f26] rounded-lg text-blue-400">
                                 <span class="material-symbols-outlined text-[20px]">trending_up</span>
                             </div>
-                            <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">+12%</span>
+                            @if(isset($activeWeekChange) && $activeWeekChange != 0)
+                                <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">{{ $activeWeekChange > 0 ? '+' : '' }}{{ $activeWeekChange }}%</span>
+                            @endif
                         </div>
                         <div>
                             <p class="text-gray-500 text-xs font-medium uppercase tracking-wider">Active (Week)</p>
-                            <h3 class="text-white text-2xl font-bold mt-1">8,200</h3>
+                            <h3 class="text-white text-2xl font-bold mt-1">{{ number_format($activeThisWeek) }}</h3>
                         </div>
                     </div>
                 </div>
@@ -125,7 +129,7 @@
                         </div>
                         <div>
                             <p class="text-gray-500 text-xs font-medium uppercase tracking-wider">Challenges</p>
-                            <h3 class="text-white text-2xl font-bold mt-1">45</h3>
+                            <h3 class="text-white text-2xl font-bold mt-1">{{ number_format($totalChallenges) }}</h3>
                         </div>
                     </div>
                 </div>
@@ -136,11 +140,10 @@
                             <div class="p-2 bg-[#1c1f26] rounded-lg text-orange-400">
                                 <span class="material-symbols-outlined text-[20px] fill-current">check_circle</span>
                             </div>
-                            <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">+8%</span>
                         </div>
                         <div>
                             <p class="text-gray-500 text-xs font-medium uppercase tracking-wider">Completed</p>
-                            <h3 class="text-white text-2xl font-bold mt-1">128K</h3>
+                            <h3 class="text-white text-2xl font-bold mt-1">{{ number_format($completedChallenges) }}</h3>
                         </div>
                     </div>
                 </div>
@@ -151,11 +154,10 @@
                             <div class="p-2 bg-[#1c1f26] rounded-lg text-yellow-400">
                                 <span class="material-symbols-outlined text-[20px]">bolt</span>
                             </div>
-                            <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">+2%</span>
                         </div>
                         <div>
                             <p class="text-gray-500 text-xs font-medium uppercase tracking-wider">Streak Rate</p>
-                            <h3 class="text-white text-2xl font-bold mt-1">78%</h3>
+                            <h3 class="text-white text-2xl font-bold mt-1">{{ $streakRate }}%</h3>
                         </div>
                     </div>
                 </div>
@@ -166,11 +168,10 @@
                             <div class="p-2 bg-[#1c1f26] rounded-lg text-pink-400">
                                 <span class="material-symbols-outlined text-[20px]">hotel_class</span>
                             </div>
-                            <span class="text-primary text-xs font-bold bg-primary/10 px-2 py-1 rounded-full">+15%</span>
                         </div>
                         <div>
                             <p class="text-gray-500 text-xs font-medium uppercase tracking-wider">System XP</p>
-                            <h3 class="text-white text-2xl font-bold mt-1">4.5M</h3>
+                            <h3 class="text-white text-2xl font-bold mt-1">{{ $totalXp >= 1000000 ? number_format($totalXp / 1000000, 1) . 'M' : number_format($totalXp) }}</h3>
                         </div>
                     </div>
                 </div>
@@ -188,6 +189,22 @@
                         </div>
                     </div>
                     <div class="relative flex-1 w-full min-h-[250px]">
+                        @php
+                            $vals = $chartValues ?? [0];
+                            $chartMax = max(1, ...$vals);
+                            $points = [];
+                            $n = count($vals);
+                            $step = $n > 1 ? 640 / ($n - 1) : 0;
+                            foreach ($vals as $i => $val) {
+                                $x = 80 + $i * $step;
+                                $y = 250 - ($val / $chartMax) * 200;
+                                $points[] = round($x, 1) . ',' . round($y, 1);
+                            }
+                            $pathLine = count($points) ? 'M' . implode(' L', $points) : 'M0,250 L800,250';
+                            $firstX = $points ? explode(',', $points[0])[0] : 80;
+                            $lastX = $points ? explode(',', $points[count($points)-1])[0] : 800;
+                            $pathFill = count($points) ? $pathLine . ' L' . $lastX . ',250 L' . $firstX . ',250 Z' : '';
+                        @endphp
                         <svg class="w-full h-full overflow-visible" viewBox="0 0 800 300">
                             <defs>
                                 <linearGradient id="gradient" x1="0%" x2="0%" y1="0%" y2="100%">
@@ -199,31 +216,23 @@
                             <line stroke="#27272a" stroke-dasharray="4" stroke-width="1" x1="0" x2="800" y1="190" y2="190"></line>
                             <line stroke="#27272a" stroke-dasharray="4" stroke-width="1" x1="0" x2="800" y1="130" y2="130"></line>
                             <line stroke="#27272a" stroke-dasharray="4" stroke-width="1" x1="0" x2="800" y1="70" y2="70"></line>
-                            <path d="M0,250
-                                         C100,220 150,230 200,180
-                                         C250,130 300,160 400,120
-                                         C500,80 550,100 650,50
-                                         C700,20 750,40 800,30
-                                         V250 Z" fill="url(#gradient)"></path>
-                            <path d="M0,250
-                                         C100,220 150,230 200,180
-                                         C250,130 300,160 400,120
-                                         C500,80 550,100 650,50
-                                         C700,20 750,40 800,30" fill="none" stroke="#30e87a" stroke-linecap="round" stroke-width="3"></path>
-                            <circle cx="200" cy="180" fill="#121417" r="4" stroke="#30e87a" stroke-width="2"></circle>
-                            <circle cx="400" cy="120" fill="#121417" r="4" stroke="#30e87a" stroke-width="2"></circle>
-                            <circle cx="650" cy="50" fill="#121417" r="4" stroke="#30e87a" stroke-width="2"></circle>
-                            <circle cx="800" cy="30" fill="#30e87a" r="6"></circle>
+                            @if($pathFill)
+                                <path d="{{ $pathFill }}" fill="url(#gradient)"></path>
+                            @endif
+                            <path d="{{ $pathLine }}" fill="none" stroke="#30e87a" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"></path>
+                            @foreach($vals as $i => $val)
+                                @php
+                                    $x = 80 + $i * $step;
+                                    $y = 250 - ($val / $chartMax) * 200;
+                                @endphp
+                                <circle cx="{{ $x }}" cy="{{ $y }}" fill="#121417" r="4" stroke="#30e87a" stroke-width="2"></circle>
+                            @endforeach
                         </svg>
                     </div>
                     <div class="flex justify-between px-2 mt-4 text-xs text-gray-600 font-medium">
-                        <span>Mon</span>
-                        <span>Tue</span>
-                        <span>Wed</span>
-                        <span>Thu</span>
-                        <span>Fri</span>
-                        <span>Sat</span>
-                        <span>Sun</span>
+                        @foreach($chartLabels ?? ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $label)
+                            <span>{{ $label }}</span>
+                        @endforeach
                     </div>
                 </section>
                 <section class="lg:col-span-1 bg-card-dark rounded-xl border border-border-dark p-6 flex flex-col shadow-card-glow">
@@ -232,42 +241,28 @@
                         <a class="text-primary text-sm hover:underline" href="#">View All</a>
                     </div>
                     <div class="flex flex-col gap-4 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
-                        <div class="flex gap-3 items-start p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
-                            <div class="rounded-full bg-blue-500/10 p-2 text-blue-400 shrink-0">
-                                <span class="material-symbols-outlined text-[18px]">school</span>
+                        @forelse($activities ?? [] as $activity)
+                            @php
+                                $iconBg = match($activity['icon_color'] ?? 'blue') {
+                                    'primary' => 'bg-primary/10 text-primary',
+                                    'blue' => 'bg-blue-500/10 text-blue-400',
+                                    'orange' => 'bg-orange-500/10 text-orange-400',
+                                    'purple' => 'bg-purple-500/10 text-purple-400',
+                                    default => 'bg-gray-500/10 text-gray-400',
+                                };
+                            @endphp
+                            <div class="flex gap-3 items-start p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
+                                <div class="rounded-full p-2 shrink-0 {{ $iconBg }}">
+                                    <span class="material-symbols-outlined text-[18px]">{{ $activity['icon'] ?? 'circle' }}</span>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-300"><span class="font-bold text-white">{{ $activity['user_name'] ?? 'User' }}</span> {{ $activity['title'] ?? '' }}</p>
+                                    <p class="text-xs text-gray-600 mt-1">{{ $activity['at']->diffForHumans() }}</p>
+                                </div>
                             </div>
-                            <div>
-                                <p class="text-sm text-gray-300"><span class="font-bold text-white">Kasun P.</span> completed "Savings 101"</p>
-                                <p class="text-xs text-gray-600 mt-1">2 mins ago</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3 items-start p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
-                            <div class="rounded-full bg-primary/10 p-2 text-primary shrink-0">
-                                <span class="material-symbols-outlined text-[18px]">military_tech</span>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-300"><span class="font-bold text-white">Amara D.</span> earned "Budget Master"</p>
-                                <p class="text-xs text-gray-600 mt-1">15 mins ago</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3 items-start p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
-                            <div class="rounded-full bg-orange-500/10 p-2 text-orange-400 shrink-0">
-                                <span class="material-symbols-outlined text-[18px]">payments</span>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-300"><span class="font-bold text-white">New User</span> subscribed to Premium</p>
-                                <p class="text-xs text-gray-600 mt-1">1 hour ago</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-3 items-start p-3 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
-                            <div class="rounded-full bg-purple-500/10 p-2 text-purple-400 shrink-0">
-                                <span class="material-symbols-outlined text-[18px]">emoji_events</span>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-300"><span class="font-bold text-white">Class 5B</span> won the weekly challenge</p>
-                                <p class="text-xs text-gray-600 mt-1">3 hours ago</p>
-                            </div>
-                        </div>
+                        @empty
+                            <p class="text-sm text-gray-500 py-4">No recent activity yet.</p>
+                        @endforelse
                     </div>
                 </section>
             </div>
@@ -279,7 +274,7 @@
                         </div>
                         <div>
                             <p class="text-gray-400 text-sm font-medium">Total Rewards Distributed</p>
-                            <h4 class="text-white text-2xl font-bold">LKR 450,200</h4>
+                            <h4 class="text-white text-2xl font-bold">LKR {{ number_format($totalRewardsAmount ?? 0) }}</h4>
                         </div>
                     </div>
                     <div class="absolute right-0 bottom-0 opacity-10 pointer-events-none">
@@ -293,7 +288,7 @@
                         </div>
                         <div>
                             <p class="text-gray-400 text-sm font-medium">KYC Verification Pending</p>
-                            <h4 class="text-white text-2xl font-bold">24 Users</h4>
+                            <h4 class="text-white text-2xl font-bold">{{ $kycPending ?? 0 }} Users</h4>
                         </div>
                         <button class="ml-auto bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-medium transition-colors border border-primary/20">Review</button>
                     </div>

@@ -5,11 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Challenge;
 use App\Models\UserChallenge;
+use App\Services\AdaptiveChallengeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class ChallengesApiController extends Controller
 {
+    public function __construct(
+        private AdaptiveChallengeService $adaptiveChallengeService
+    ) {}
+
     /**
      * Get all challenges (catalog)
      */
@@ -238,6 +243,26 @@ class ChallengesApiController extends Controller
     }
 
     /**
+     * GET /api/challenges/recommended
+     * Returns up to 8 challenges personalized by tier and top spending category, with metadata.
+     */
+    public function recommended(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $result = $this->adaptiveChallengeService->getRecommendedWithMetadata($user);
+
+        return response()->json([
+            'tier' => $result['tier'],
+            'top_category' => $result['top_category'],
+            'recommended' => $result['recommended']->map(fn ($challenge) => $this->mapChallengeToApi($challenge)),
+        ]);
+    }
+
+    /**
      * GET /api/challenges/for-you
      * Returns accepted + available challenges for the authenticated user in one payload.
      * Progress is read from user_challenges.progress (source of truth, updated by ChallengeProgressService).
@@ -361,5 +386,31 @@ class ChallengesApiController extends Controller
             'onetime' => 'once',
             default => strtolower($frequency),
         };
+    }
+
+    private function mapChallengeToApi(Challenge $challenge): array
+    {
+        return [
+            'id' => $challenge->id,
+            'name' => $challenge->name,
+            'description' => $challenge->description,
+            'difficulty' => $challenge->difficulty,
+            'category' => $challenge->category,
+            'frequency' => $challenge->frequency,
+            'xp_reward' => $challenge->xp_reward,
+            'unlock_badge' => (bool) $challenge->unlock_badge,
+            'badge_image_url' => $challenge->badge_image_url,
+            'icon' => $challenge->icon ?? '🎯',
+            'target_type' => $challenge->target_type,
+            'target_value' => $challenge->target_value,
+            'duration' => $challenge->duration,
+            'type' => $challenge->type,
+            'is_active' => (bool) $challenge->is_active,
+            'win_conditions' => $challenge->win_conditions,
+            'starts_at' => $challenge->starts_at?->toIso8601String(),
+            'ends_at' => $challenge->ends_at?->toIso8601String(),
+            'created_at' => $challenge->created_at?->toIso8601String(),
+            'updated_at' => $challenge->updated_at?->toIso8601String(),
+        ];
     }
 }

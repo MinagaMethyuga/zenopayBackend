@@ -11,6 +11,7 @@ use App\Models\UserProfile;
 use App\Models\Wallet;
 use App\Models\Challenge;
 use App\Models\Transaction;
+use App\Models\UserChallenge;
 
 class User extends Authenticatable
 {
@@ -62,5 +63,11 @@ class User extends Authenticatable
     public function transactions()
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    // Challenges accepted by user (pivot)
+    public function userChallenges()
+    {
+        return $this->hasMany(UserChallenge::class);
     }
 }

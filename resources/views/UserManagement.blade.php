@@ -47,37 +47,38 @@
             <div class="flex w-full max-w-7xl flex-col gap-8">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <h1 class="text-4xl font-bold tracking-tight text-white">User Management</h1>
-                    <button class="flex h-12 min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-6 text-base font-bold text-background-dark shadow-glow-primary transition-shadow hover:shadow-glow-primary-hover">
+                    <button type="button" class="flex h-12 min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full bg-primary px-6 text-base font-bold text-background-dark shadow-glow-primary transition-shadow hover:shadow-glow-primary-hover">
                         <span class="material-symbols-outlined">add</span>
                         <span>Add User</span>
                     </button>
                 </div>
-                <div class="flex flex-col gap-4 md:flex-row md:items-center">
+                <form method="GET" action="{{ route('UserManagement') }}" class="flex flex-col gap-4 md:flex-row md:items-center">
+                    <input type="hidden" name="status" value="{{ $statusFilter ?? 'all' }}" id="form-status"/>
                     <div class="flex-grow">
                         <label class="flex h-12 w-full flex-col">
                             <div class="group flex h-full w-full flex-1 items-stretch rounded-full bg-surface-dark ring-1 ring-primary/50 transition-all focus-within:ring-2 focus-within:ring-primary focus-within:shadow-glow-primary">
                                 <div class="flex items-center justify-center pl-4 text-primary">
                                     <span class="material-symbols-outlined">search</span>
                                 </div>
-                                <input class="form-input h-full min-w-0 flex-1 resize-none overflow-hidden border-none bg-transparent px-3 text-base font-normal leading-normal text-white placeholder:text-gray-400 focus:outline-none focus:ring-0" placeholder="Search by name, email, or ID..."/>
+                                <input type="search" name="search" value="{{ old('search', $search ?? '') }}" class="form-input h-full min-w-0 flex-1 resize-none overflow-hidden border-none bg-transparent px-3 text-base font-normal leading-normal text-white placeholder:text-gray-400 focus:outline-none focus:ring-0" placeholder="Search by name, email, or ID..."/>
                             </div>
                         </label>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
-                        <div class="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-primary px-5">
-                            <p class="text-sm font-bold text-background-dark">All</p>
-                        </div>
-                        <div class="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-surface-dark px-5 text-sky-400 ring-1 ring-sky-400/50 hover:bg-sky-400/10 hover:ring-sky-400">
+                        <a href="{{ route('UserManagement', ['search' => $search, 'status' => 'all']) }}" class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 {{ ($statusFilter ?? 'all') === 'all' ? 'bg-primary text-background-dark' : 'bg-surface-dark text-gray-400 hover:bg-white/5' }}">
+                            <p class="text-sm font-bold">All</p>
+                        </a>
+                        <a href="{{ route('UserManagement', ['search' => $search, 'status' => 'active']) }}" class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 {{ ($statusFilter ?? '') === 'active' ? 'bg-sky-500/20 text-sky-400 ring-1 ring-sky-400' : 'bg-surface-dark text-sky-400 ring-1 ring-sky-400/50 hover:bg-sky-400/10' }}">
                             <p class="text-sm font-medium">Active</p>
-                        </div>
-                        <div class="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-surface-dark px-5 text-yellow-400 ring-1 ring-yellow-400/50 hover:bg-yellow-400/10 hover:ring-yellow-400">
+                        </a>
+                        <a href="{{ route('UserManagement', ['search' => $search, 'status' => 'low_activity']) }}" class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 {{ ($statusFilter ?? '') === 'low_activity' ? 'bg-yellow-500/20 text-yellow-400 ring-1 ring-yellow-400' : 'bg-surface-dark text-yellow-400 ring-1 ring-yellow-400/50 hover:bg-yellow-400/10' }}">
                             <p class="text-sm font-medium">Low Activity</p>
-                        </div>
-                        <div class="flex h-10 shrink-0 cursor-pointer items-center justify-center gap-x-2 rounded-full bg-surface-dark px-5 text-pink-400 ring-1 ring-pink-400/50 hover:bg-pink-400/10 hover:ring-pink-400">
+                        </a>
+                        <a href="{{ route('UserManagement', ['search' => $search, 'status' => 'inactive']) }}" class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full px-5 {{ ($statusFilter ?? '') === 'inactive' ? 'bg-pink-500/20 text-pink-400 ring-1 ring-pink-400' : 'bg-surface-dark text-pink-400 ring-1 ring-pink-400/50 hover:bg-pink-400/10' }}">
                             <p class="text-sm font-medium">Inactive</p>
-                        </div>
+                        </a>
                     </div>
-                </div>
+                </form>
                 <div class="w-full overflow-x-auto">
                     <div class="overflow-hidden rounded-xl border border-gray-800 bg-surface-dark">
                         <table class="min-w-full table-auto">
@@ -86,148 +87,80 @@
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">User</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Status</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Challenges Completed</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Savings Goals</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">XP / Level</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Registration Date</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"></th>
                             </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-800">
-                            <tr class="transition-colors hover:bg-black/10">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 flex-shrink-0 rounded-full bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA0FQIzXXHEjJnpv4tLhl_KKjtJfHg05vtV_quxvIDgec6mKEF7jeB8UUUuEatpj7rTbw2RX5I_NPpI9DPfHh_n2EzTHX6S2275dlqY0410x2eQbBAGfyYaVW135m7HJQRvD86K7qHQB4CDVYqi1GtnY_4V-p4ttWHoUz9-RNDOuqvT1cParHfjRU4GLcgug4-y6DohNL20qQtWNgwLkPz0e649cBFCNYSrYBFZlvFSrXK0IgRMbA-P0vkQxXNYv5no81i_pAFv3ns");'></div>
-                                        <div>
-                                            <div class="text-sm font-medium text-white">Olivia Rhye</div>
-                                            <div class="text-sm text-gray-400">olivia@zenopay.com</div>
+                            @forelse($users as $user)
+                                @php
+                                    $completed = $user->completed_challenges_count ?? 0;
+                                    $total = $totalChallenges ?? 1;
+                                    $pct = $total > 0 ? min(100, round(($completed / $total) * 100)) : 0;
+                                    $status = $user->display_status ?? 'inactive';
+                                    $statusLabel = match($status) {
+                                        'active' => 'Active',
+                                        'low_activity' => 'Low activity',
+                                        default => 'Inactive',
+                                    };
+                                    $statusClass = match($status) {
+                                        'active' => 'bg-sky-500/10 text-sky-400',
+                                        'low_activity' => 'bg-yellow-500/10 text-yellow-400',
+                                        default => 'bg-pink-500/10 text-pink-400',
+                                    };
+                                    $statusDot = match($status) {
+                                        'active' => 'bg-sky-500',
+                                        'low_activity' => 'bg-yellow-500',
+                                        default => 'bg-pink-500',
+                                    };
+                                    $initials = strtoupper(mb_substr($user->name ?? 'U', 0, 1) . mb_substr(preg_replace('/\s+/', '', $user->name ?? '') ?: 'U', 1, 1) ?: '');
+                                    if ($initials === '') { $initials = 'U'; }
+                                @endphp
+                                <tr class="transition-colors hover:bg-black/10">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center gap-4">
+                                            <div class="h-10 w-10 flex-shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">{{ $initials }}</div>
+                                            <div>
+                                                <div class="text-sm font-medium text-white">{{ $user->name }}</div>
+                                                <div class="text-sm text-gray-400">{{ $user->email }}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400">
-                                        <span class="h-2 w-2 rounded-full bg-sky-500"></span>
-                                        Active
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full bg-primary" style="width: 85%;"></div></div>
-                                        <p class="text-sm font-medium text-white">75 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full" style="width: 68%; background-color: #38bdf8;"></div></div>
-                                        <p class="text-sm font-medium text-white">60 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">Jan 15, 2024</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button class="text-gray-400 hover:text-white"><span class="material-symbols-outlined">more_vert</span></button>
-                                </td>
-                            </tr>
-                            <tr class="transition-colors hover:bg-black/10">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 flex-shrink-0 rounded-full bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAUjXfXoVdFMa3fMlMnvvLwzFd-4Q72BLik6wV_EsLaGSaUtPH6n_NF4aJZxz9Tbk0w2W6wv9wU9HKNvv1_IBXPBTdW4r4j3ZmEe3SwkGcUDc-c1zg2I_1iBJfWkYXTIWPxPgCxYujeDWQ3H1_kIcz9NJCb3zDzqe2VZl6xHrss63S-fyR__2-6SyT_oSTYDahvUAjPrCnLi25HLowKp1ic0JVzurZQj7Ap7dL38JyQQ3S9bTZuhbvAIzHiq19MyxBMz_6MEKyvFd4");'></div>
-                                        <div>
-                                            <div class="text-sm font-medium text-white">Phoenix Baker</div>
-                                            <div class="text-sm text-gray-400">phoenix@zenopay.com</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="inline-flex items-center gap-2 rounded-full {{ $statusClass }} px-3 py-1 text-xs font-medium">
+                                            <span class="h-2 w-2 rounded-full {{ $statusDot }}"></span>
+                                            {{ $statusLabel }}
                                         </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="inline-flex items-center gap-2 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-medium text-yellow-400">
-                                        <span class="h-2 w-2 rounded-full bg-yellow-500"></span>
-                                        Low activity
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full bg-primary" style="width: 28%;"></div></div>
-                                        <p class="text-sm font-medium text-white">25 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full" style="width: 90%; background-color: #a855f7;"></div></div>
-                                        <p class="text-sm font-medium text-white">80 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">Jan 12, 2024</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button class="text-gray-400 hover:text-white"><span class="material-symbols-outlined">more_vert</span></button>
-                                </td>
-                            </tr>
-                            <tr class="transition-colors hover:bg-black/10">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 flex-shrink-0 rounded-full bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCD8VtBiV6CLtGksrdoDVO6-yBuUKaJNjZbH6S0lmKiq8--Q0eVR_SbDfRiFiL8KFdoKKWTrOSQjkSkfUUszofzex8wZaSxuBEnTr7A3kFYpHEnMEqMMST8hm7ZWvQlBKCmRE1d7Gal9VR0p70oNpAfyQPfpvj0QhO-irr3xwPbd8xURJ78q_6VhCLMc0jCjWSHmUWTuhIbrLUHxy6etq9Hb5fnIw8tfResSAThR2bZXCc6OrBnKEGbWVMDjKIk25PVgF54yanJ6ZY");'></div>
-                                        <div>
-                                            <div class="text-sm font-medium text-white">Lana Steiner</div>
-                                            <div class="text-sm text-gray-400">lana@zenopay.com</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full bg-primary" style="width: {{ $pct }}%;"></div></div>
+                                            <p class="text-sm font-medium text-white">{{ $completed }} / {{ $total }}</p>
                                         </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="inline-flex items-center gap-2 rounded-full bg-pink-500/10 px-3 py-1 text-xs font-medium text-pink-400">
-                                        <span class="h-2 w-2 rounded-full bg-pink-500"></span>
-                                        Inactive
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full bg-primary" style="width: 56%;"></div></div>
-                                        <p class="text-sm font-medium text-white">50 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full" style="width: 45%; background-color: #38bdf8;"></div></div>
-                                        <p class="text-sm font-medium text-white">40 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">Jan 10, 2024</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button class="text-gray-400 hover:text-white"><span class="material-symbols-outlined">more_vert</span></button>
-                                </td>
-                            </tr>
-                            <tr class="transition-colors hover:bg-black/10">
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 flex-shrink-0 rounded-full bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAR_cxzeTpwuovXyS6pdJAg1piV5JGfkEGHxb9hN9OoSF5G_2XCIDgutuhjCnahWkPiBih57sUEuHHlG2Ghc26Ej9pXdtFs_8bneQx7FUwecZPuZ6wyxsQMr7FdPU66j6wUxt9h5irGpfyIjzx5xqiR_FTmDe3dpXqwMepOWj-MqZz-EzDjBJmuVTZaTnsKMmWdTbg73Fge4t4iukfqMIefWvSzJk_5A2ep9djiw1l1MFZB5Mse9OhQKk-JZu7FpdZ-mtB9ONbPANc");'></div>
-                                        <div>
-                                            <div class="text-sm font-medium text-white">Demi Wilkinson</div>
-                                            <div class="text-sm text-gray-400">demi@zenopay.com</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="inline-flex items-center gap-2 rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400">
-                                        <span class="h-2 w-2 rounded-full bg-sky-500"></span>
-                                        Active
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full bg-primary" style="width: 100%;"></div></div>
-                                        <p class="text-sm font-medium text-white">88 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-24 overflow-hidden rounded-full bg-gray-700"><div class="h-1.5 rounded-full" style="width: 100%; background-color: #a855f7;"></div></div>
-                                        <p class="text-sm font-medium text-white">88 / 88</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">Jan 8, 2024</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button class="text-gray-400 hover:text-white"><span class="material-symbols-outlined">more_vert</span></button>
-                                </td>
-                            </tr>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <p class="text-sm font-medium text-white">{{ $user->profile?->xp ?? 0 }} XP / Lv {{ $user->profile?->level ?? 1 }}</p>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{{ $user->created_at?->format('M j, Y') ?? '—' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button type="button" class="text-gray-400 hover:text-white"><span class="material-symbols-outlined">more_vert</span></button>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="px-6 py-12 text-center text-gray-400">No users found.</td>
+                                </tr>
+                            @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
+                @if(isset($users) && $users->hasPages())
+                    <div class="mt-6">
+                        {{ $users->links() }}
+                    </div>
+                @endif
             </div>
         </div>
     </div>

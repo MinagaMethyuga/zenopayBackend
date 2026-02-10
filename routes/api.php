@@ -42,6 +42,9 @@ Route::middleware('web')->group(function () {
         // ✅ One endpoint: accepted + available challenges for the authenticated user
         Route::get('/challenges/for-you', [ChallengesApiController::class, 'forYou']);
 
+        // ✅ Personalized recommended challenges by tier
+        Route::get('/challenges/recommended', [ChallengesApiController::class, 'recommended']);
+
         // ✅ Active/Completed quests for tabs
         Route::get('/my-challenges', [UserChallengesApiController::class, 'index']);
 
