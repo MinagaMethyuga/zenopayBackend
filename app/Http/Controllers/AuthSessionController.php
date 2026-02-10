@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -38,7 +39,7 @@ class AuthSessionController extends Controller
 
         return response()->json([
             'ok' => true,
-            'user' => $user->load('profile'),
+            'user' => new UserResource($user->load('profile')),
         ], 201);
     }
 
@@ -57,7 +58,7 @@ class AuthSessionController extends Controller
 
         return response()->json([
             'ok' => true,
-            'user' => $request->user()->load('profile'),
+            'user' => new UserResource($request->user()->load('profile')),
         ]);
     }
 
@@ -68,7 +69,7 @@ class AuthSessionController extends Controller
         }
 
         return response()->json([
-            'user' => $request->user()->load(['profile', 'wallets']),
+            'user' => new UserResource($request->user()->load(['profile', 'wallets'])),
         ]);
     }
 

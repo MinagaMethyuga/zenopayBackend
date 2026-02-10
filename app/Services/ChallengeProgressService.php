@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Models\UserChallenge;
-use App\Models\UserProfile;
 use App\Models\UserBadge;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
@@ -110,38 +110,67 @@ class ChallengeProgressService
 
     private static function applyProgress(UserChallenge $uc, float $amount): void
     {
-        $c = $uc->challenge;
-        $target = self::parseTargetValue($c->target_value ?? null);
-        if ($target <= 0) return;
+        $ucId = (int) $uc->id;
 
-        DB::transaction(function () use ($uc, $c, $amount, $target) {
-            $uc->progress = (float) $uc->progress + $amount;
+        DB::transaction(function () use ($ucId, $amount) {
+            $locked = UserChallenge::query()
+                ->with('challenge')
+                ->whereKey($ucId)
+                ->lockForUpdate()
+                ->first();
 
-            if ($uc->progress >= $target) {
-                $uc->progress = $target;
-                $uc->status = 'completed';
-                $uc->completed_at = now();
-
-                $profile = UserProfile::firstOrCreate(['user_id' => $uc->user_id], ['user_id' => $uc->user_id, 'xp' => 0]);
-                $profile->xp = (int) $profile->xp + (int) $c->xp_reward;
-                $profile->save();
-
-                if ((bool) $c->unlock_badge) {
-                    UserBadge::updateOrCreate(
-                        ['user_id' => $uc->user_id, 'challenge_id' => $c->id],
-                        ['badge_image' => $c->badge_image, 'unlocked_at' => now()]
-                    );
-                }
-
-                Log::channel('single')->info('ChallengeProgressService: challenge completed', [
-                    'user_challenge_id' => $uc->id,
-                    'challenge_id' => $c->id,
-                    'xp_awarded' => $c->xp_reward,
-                    'badge_unlocked' => (bool) $c->unlock_badge,
-                ]);
+            if (!$locked || !$locked->challenge) {
+                return;
             }
 
-            $uc->save();
+            if ($locked->status === 'completed') {
+                return; // already completed; never award XP twice
+            }
+
+            $c = $locked->challenge;
+            $target = self::parseTargetValue($c->target_value ?? null);
+            if ($target <= 0) {
+                return;
+            }
+
+            $locked->progress = (float) $locked->progress + $amount;
+
+            $justCompleted = false;
+            if ($locked->progress >= $target) {
+                $locked->progress = $target;
+                $locked->status = 'completed';
+                $locked->completed_at = now();
+                $justCompleted = true;
+            }
+
+            $locked->save();
+
+            if (!$justCompleted) {
+                return;
+            }
+
+            // Award XP for completion exactly once (user_challenges row is locked).
+            $xpReward = (int) ($c->xp_reward ?? 0);
+            if ($xpReward > 0) {
+                $user = User::query()->whereKey($locked->user_id)->first();
+                if ($user) {
+                    app(XpService::class)->addXp($user, $xpReward);
+                }
+            }
+
+            if ((bool) $c->unlock_badge) {
+                UserBadge::updateOrCreate(
+                    ['user_id' => $locked->user_id, 'challenge_id' => $c->id],
+                    ['badge_image' => $c->badge_image, 'unlocked_at' => now()]
+                );
+            }
+
+            Log::channel('single')->info('ChallengeProgressService: challenge completed', [
+                'user_challenge_id' => $locked->id,
+                'challenge_id' => $c->id,
+                'xp_awarded' => $xpReward,
+                'badge_unlocked' => (bool) $c->unlock_badge,
+            ]);
         });
     }
 }

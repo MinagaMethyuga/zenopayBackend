@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
+use App\Services\XpService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -11,7 +12,7 @@ use App\Services\ChallengeProgressService; // ✅ ADD
 
 class Transactions extends Controller
 {
-    public function store(Request $request)
+    public function store(Request $request, XpService $xpService)
     {
         $user = $request->user(); // session auth
 
@@ -32,7 +33,7 @@ class Transactions extends Controller
         $tx = null;
         $updatedWallet = null;
 
-        DB::transaction(function () use ($user, $data, &$tx, &$updatedWallet) {
+        DB::transaction(function () use ($user, $data, $xpService, &$tx, &$updatedWallet) {
             $amount = (float) $data['amount'];
 
             $delta = $data['type'] === 'expense' ? -$amount : $amount;
@@ -96,6 +97,9 @@ class Transactions extends Controller
                 'occurred_at' => $data['occurred_at'],
                 'source' => $data['source'] ?? 'manual',
             ]);
+
+            // Award XP exactly once per newly created transaction (atomic with the insert).
+            $xpService->awardForNewTransaction($user);
 
             $updatedWallet = [
                 'type' => $walletType,
