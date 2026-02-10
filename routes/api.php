@@ -44,6 +44,9 @@ Route::middleware('web')->group(function () {
 
         // ✅ Active/Completed quests for tabs
         Route::get('/my-challenges', [UserChallengesApiController::class, 'index']);
+
+        // Budgets with spent (main_category + sub_category logic)
+        Route::get('/budgets', [BudgetsApiController::class, 'index']);
     });
 });
 
