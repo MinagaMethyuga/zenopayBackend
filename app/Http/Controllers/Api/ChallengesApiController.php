@@ -236,4 +236,130 @@ class ChallengesApiController extends Controller
             ]
         ]);
     }
+
+    /**
+     * GET /api/challenges/for-you
+     * Returns accepted + available challenges for the authenticated user in one payload.
+     * Progress is read from user_challenges.progress (source of truth, updated by ChallengeProgressService).
+     */
+    public function forYou(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        // Single query: all user_challenges for this user with challenge eager loaded
+        $userChallenges = UserChallenge::with('challenge')
+            ->where('user_id', $user->id)
+            ->get();
+
+        $acceptedChallengeIds = $userChallenges->pluck('challenge_id')->filter()->unique()->values()->all();
+
+        // Available = active challenges (within date window) that user has NOT accepted
+        $availableQuery = Challenge::query()
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('starts_at')->orWhere('starts_at', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('ends_at')->orWhere('ends_at', '>=', now());
+            });
+
+        if (!empty($acceptedChallengeIds)) {
+            $availableQuery->whereNotIn('id', $acceptedChallengeIds);
+        }
+
+        $availableChallenges = $availableQuery->orderBy('created_at', 'desc')->get();
+
+        $accepted = $userChallenges
+            ->filter(fn ($uc) => $uc->challenge !== null)
+            ->map(fn ($uc) => $this->mapToForYouAcceptedItem($uc))
+            ->values()
+            ->all();
+
+        $available = $availableChallenges
+            ->map(fn ($c) => $this->mapToForYouAvailableItem($c))
+            ->values()
+            ->all();
+
+        return response()->json([
+            'accepted' => $accepted,
+            'available' => $available,
+        ]);
+    }
+
+    /**
+     * Map challenge + user_challenge to the "accepted" item shape.
+     * Progress is from user_challenges.progress (no recomputation).
+     */
+    private function mapToForYouAcceptedItem(UserChallenge $uc): array
+    {
+        $c = $uc->challenge;
+        $progress = (float) $uc->progress;
+        $target = $this->parseTargetValue($c->target_value ?? null);
+        if ($uc->status === 'completed' && $target > 0 && $progress < $target) {
+            $progress = $target;
+        }
+
+        return [
+            'id' => $c->id,
+            'title' => $c->name,
+            'description' => (string) $c->description,
+            'type' => (string) ($c->type ?? 'regular'),
+            'target' => $target > 0 ? $target : null,
+            'reward_points' => (int) $c->xp_reward,
+            'icon' => (string) ($c->icon ?? '🎯'),
+            'color' => (string) ($c->difficulty_color ?? 'gray'),
+            'frequency' => $this->normalizeFrequencyForApi($c->frequency),
+            'status' => $uc->status === 'completed' ? 'completed' : 'accepted',
+            'progress' => $progress,
+            'accepted_at' => $uc->accepted_at?->toIso8601String() ?? null,
+            'completed_at' => $uc->completed_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Map challenge to the "available" item shape (no user_challenge).
+     */
+    private function mapToForYouAvailableItem(Challenge $c): array
+    {
+        $target = $this->parseTargetValue($c->target_value ?? null);
+        return [
+            'id' => $c->id,
+            'title' => $c->name,
+            'description' => (string) $c->description,
+            'type' => (string) ($c->type ?? 'regular'),
+            'target' => $target > 0 ? $target : null,
+            'reward_points' => (int) $c->xp_reward,
+            'icon' => (string) ($c->icon ?? '🎯'),
+            'color' => (string) ($c->difficulty_color ?? 'gray'),
+            'frequency' => $this->normalizeFrequencyForApi($c->frequency),
+        ];
+    }
+
+    private function parseTargetValue(?string $val): float
+    {
+        if ($val === null || $val === '') {
+            return 0.0;
+        }
+        $s = str_replace([',', ' '], '', (string) $val);
+        return preg_match('/(\d+(\.\d+)?)/', $s, $m) ? (float) $m[1] : 0.0;
+    }
+
+    private function normalizeFrequencyForApi(?string $frequency): string
+    {
+        if ($frequency === null || $frequency === '') {
+            return 'weekly';
+        }
+        return match (strtolower(str_replace('-', '', $frequency))) {
+            'daily' => 'daily',
+            'weekly' => 'weekly',
+            'monthly' => 'monthly',
+            'quarterly' => 'quarterly',
+            'yearly' => 'yearly',
+            'onetime' => 'once',
+            default => strtolower($frequency),
+        };
+    }
 }

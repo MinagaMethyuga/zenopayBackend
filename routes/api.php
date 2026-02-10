@@ -39,6 +39,9 @@ Route::middleware('web')->group(function () {
         // ✅ Accept quest (must be authenticated)
         Route::post('/challenges/{id}/accept', [ChallengesApiController::class, 'accept']);
 
+        // ✅ One endpoint: accepted + available challenges for the authenticated user
+        Route::get('/challenges/for-you', [ChallengesApiController::class, 'forYou']);
+
         // ✅ Active/Completed quests for tabs
         Route::get('/my-challenges', [UserChallengesApiController::class, 'index']);
     });
